@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Version>$(BlueChainVersion)</Version>
+    <FindDependenciesOfExternallyResolvedReferences>false</FindDependenciesOfExternallyResolvedReferences>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlueChain.MonoSmoke" />
+    <Reference Include="BepInEx" HintPath="$(SeaPowerDir)/BepInEx/core/BepInEx.dll" Private="false" ExternallyResolved="true" />
+    <Reference Include="0Harmony" HintPath="$(SeaPowerDir)/BepInEx/core/0Harmony.dll" Private="false" ExternallyResolved="true" />
+    <Reference Include="UnityEngine" HintPath="$(SeaPowerDir)/Sea Power_Data/Managed/UnityEngine.dll" Private="false" ExternallyResolved="true" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(SeaPowerDir)/Sea Power_Data/Managed/UnityEngine.CoreModule.dll" Private="false" ExternallyResolved="true" />
+    <Reference Include="com.rlabrecque.steamworks.net" HintPath="$(SeaPowerDir)/Sea Power_Data/Managed/com.rlabrecque.steamworks.net.dll" Private="false" ExternallyResolved="true" />
+  </ItemGroup>
+  <Target Name="CheckPreloaderReferences" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(SeaPowerDir)/Sea Power_Data/Managed/com.rlabrecque.steamworks.net.dll')"
+           Text="Set SeaPowerDir to the Sea Power installation directory." />
+    <Error Condition="!Exists('$(SeaPowerDir)/BepInEx/core/BepInEx.dll')"
+           Text="Install BepInEx 5 in the Sea Power directory used to build Blue Chain." />
+  </Target>
+</Project>

@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <BlueChainVersion>0.2.0</BlueChainVersion>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

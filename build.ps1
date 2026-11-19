@@ -5,40 +5,69 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $GameDirectory = (Resolve-Path -LiteralPath $GameDirectory).Path
-$project = Join-Path $PSScriptRoot 'src/BlueChain/BlueChain.csproj'
 $properties = @("-p:SeaPowerDir=$GameDirectory")
-if ($SourceRevision) { $properties += "-p:SourceRevisionId=$SourceRevision" }
-& dotnet build $project -c Release --nologo @properties
-if ($LASTEXITCODE -ne 0) { throw 'Blue Chain did not build.' }
+if ($SourceRevision) {
+    $properties += "-p:SourceRevisionId=$SourceRevision"
+} else {
+    $properties += '-p:IncludeSourceRevisionInInformationalVersion=false'
+}
 
-$bin = Join-Path $PSScriptRoot 'src/BlueChain/bin/Release/netstandard2.1'
-$loader = Join-Path $bin 'BlueChain.dll'
-$version = [Reflection.AssemblyName]::GetAssemblyName($loader).Version.ToString(3)
+& dotnet build (Join-Path $PSScriptRoot 'src/BlueChain/BlueChain.csproj') -c Release --nologo @properties
+if ($LASTEXITCODE -ne 0) { throw 'Blue Chain runtime did not build.' }
+& dotnet build (Join-Path $PSScriptRoot 'src/BlueChain.Preloader/BlueChain.Preloader.csproj') -c Release --nologo @properties
+if ($LASTEXITCODE -ne 0) { throw 'Blue Chain Preloader did not build.' }
+
+$runtimeBin = Join-Path $PSScriptRoot 'src/BlueChain/bin/Release/netstandard2.1'
+$preloader = Join-Path $PSScriptRoot 'src/BlueChain.Preloader/bin/Release/netstandard2.1/BlueChain.Preloader.dll'
+$version = [Reflection.AssemblyName]::GetAssemblyName($preloader).Version.ToString(3)
 $dist = Join-Path $PSScriptRoot 'dist'
 [IO.Directory]::CreateDirectory($dist) | Out-Null
-$archivePath = Join-Path $dist "BlueChain-$version.zip"
-$temporaryArchive = Join-Path $dist ([IO.Path]::GetRandomFileName())
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-try {
-    $archive = [IO.Compression.ZipFile]::Open($temporaryArchive, [IO.Compression.ZipArchiveMode]::Create)
+function Write-Package([string]$Name, [System.Collections.IDictionary]$Files) {
+    $archivePath = Join-Path $dist $Name
+    $temporaryArchive = Join-Path $dist ([IO.Path]::GetRandomFileName())
     try {
-        $files = [ordered]@{
-            'BepInEx/plugins/BlueChain/BlueChain.dll' = $loader
-            'BepInEx/plugins/BlueChain/AnchorChain.dll' = Join-Path $bin 'AnchorChain.dll'
-            'README.md' = Join-Path $PSScriptRoot 'README.md'
-            'ThirdPartyNotices/AnchorChain.txt' = Join-Path $PSScriptRoot 'ThirdPartyNotices/AnchorChain.txt'
+        $archive = [IO.Compression.ZipFile]::Open($temporaryArchive, [IO.Compression.ZipArchiveMode]::Create)
+        try {
+            foreach ($entry in $Files.GetEnumerator()) {
+                [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $entry.Value, $entry.Key) | Out-Null
+            }
+        } finally {
+            $archive.Dispose()
         }
-        foreach ($entry in $files.GetEnumerator()) {
-            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $entry.Value, $entry.Key) | Out-Null
-        }
+        Move-Item -LiteralPath $temporaryArchive -Destination $archivePath -Force
     } finally {
-        $archive.Dispose()
+        if (Test-Path -LiteralPath $temporaryArchive) { Remove-Item -LiteralPath $temporaryArchive }
     }
-    Move-Item -LiteralPath $temporaryArchive -Destination $archivePath -Force
-} finally {
-    if (Test-Path -LiteralPath $temporaryArchive) { Remove-Item -LiteralPath $temporaryArchive }
+
+    $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$hash  $Name" | Set-Content -LiteralPath "$archivePath.sha256" -Encoding ascii
+    Write-Output $archivePath
 }
-$hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
-"$hash  $(Split-Path -Leaf $archivePath)" | Set-Content -LiteralPath "$archivePath.sha256" -Encoding ascii
-Write-Output $archivePath
+
+$license = Join-Path $PSScriptRoot 'LICENSE'
+$preloaderFiles = [ordered]@{
+    'BepInEx/plugins/BlueChain.Preloader.dll' = $preloader
+    'README.md' = Join-Path $PSScriptRoot 'README.md'
+    'LICENSE' = $license
+}
+$workshopFiles = [ordered]@{
+    '_info.ini' = Join-Path $PSScriptRoot 'package/Workshop/_info.ini'
+    'BlueChain.dll' = Join-Path $runtimeBin 'BlueChain.dll'
+    'AnchorChain.dll' = Join-Path $runtimeBin 'AnchorChain.dll'
+    'LICENSE' = $license
+    'ThirdPartyNotices/AnchorChain.txt' = Join-Path $PSScriptRoot 'ThirdPartyNotices/AnchorChain.txt'
+}
+Write-Package "BlueChain-$version-Preloader.zip" $preloaderFiles
+Write-Package "BlueChain-$version-Workshop.zip" $workshopFiles
+
+$localFiles = [ordered]@{}
+foreach ($entry in $preloaderFiles.GetEnumerator()) {
+    $localFiles.Add($entry.Key, $entry.Value)
+}
+foreach ($entry in $workshopFiles.GetEnumerator()) {
+    if ($entry.Key -eq 'LICENSE') { continue }
+    $localFiles.Add("Sea Power_Data/StreamingAssets/BlueChain/$($entry.Key)", $entry.Value)
+}
+Write-Package "BlueChain-$version.zip" $localFiles

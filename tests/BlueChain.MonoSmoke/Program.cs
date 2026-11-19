@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Reflection;
 using AnchorChain;
+using BlueChain.Preloader;
+using EItemState = Steamworks.EItemState;
 using BepInEx.Logging;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -17,6 +19,7 @@ internal static class Program
         {
             VerifyCoroutine();
             string scratch = Path.GetFullPath(args[0]);
+            VerifyRuntimeSelection(scratch);
             VerifyModLoading(scratch);
             VerifyFileLookup(scratch);
             Console.WriteLine("PASS Startup waits for compatibility checks, selects active mods, binds the plug-in entry points, initializes in dependency order, and resolves configuration files.");
@@ -29,6 +32,70 @@ internal static class Program
         }
     }
 
+    private static void VerifyRuntimeSelection(string scratch)
+    {
+        const ulong itemId = 4123456789;
+        const string name = "4123456789";
+        const EItemState ready = EItemState.k_EItemStateSubscribed | EItemState.k_EItemStateInstalled;
+        string settings = Path.Combine(scratch, "usersettings.ini");
+        var local = new ModFolder(Directory.CreateDirectory(Path.Combine(scratch, "StreamingAssets", name)).FullName);
+        var workshop = new ModFolder(Directory.CreateDirectory(Path.Combine(scratch, "WorkshopRuntime", name)).FullName, itemId);
+        var both = new[] { local, workshop };
+        var started = new List<string>();
+
+        void Select(RuntimeStartup startup, params ModFolder[] available)
+        {
+            var selection = SavedModSelection.Read(settings);
+            var locals = available.Where(folder => folder.ItemId == 0).ToArray();
+            if (!startup.TryStartLocal(name, locals, selection, started.Add, _ => { }))
+                startup.StartFromInstalled(name, available, selection, started.Add, _ => { });
+        }
+
+        void Save(params string[] rows)
+        {
+            var lines = rows.Select((row, index) => $"Mod{index + 1}Directory={row}");
+            File.WriteAllLines(settings, new[] { "[LoadOrder]", $"NumberOfModFiles={rows.Length}" }.Concat(lines));
+        }
+
+        Select(new RuntimeStartup(), both);
+        Save($"{name},False,0", $"{name},True,{itemId}");
+        Select(new RuntimeStartup(), both);
+        Require(started.Count == 0, "A local copy that is disabled or has no saved selection let the Workshop copy start.");
+
+        Save($"{name},False,{itemId}", $"{name},True,0");
+        Select(new RuntimeStartup(), local);
+        Require(started.Count == 0, "A removed Workshop copy's earlier OFF row did not apply to the same-named local folder.");
+
+        var enabledLocal = new RuntimeStartup();
+        Select(enabledLocal, both);
+        Select(enabledLocal, both);
+        Require(started.SequenceEqual(new[] { Path.Combine(local.Directory, "BlueChain.dll") }),
+            "An enabled local copy did not take precedence exactly once when both folders were installed.");
+
+        Save($"{name},False,0", $"{name},True,{itemId}");
+        Select(new RuntimeStartup(), workshop);
+        Require(started.Count == 1, "The Workshop copy ignored the earlier OFF row of the removed local copy.");
+
+        Save($"{name},True,0");
+        Select(new RuntimeStartup(), workshop);
+        Require(started.SequenceEqual(new[] { Path.Combine(local.Directory, "BlueChain.dll"), Path.Combine(workshop.Directory, "BlueChain.dll") }),
+            "The Workshop copy did not inherit the first matching ON row after the local copy was removed.");
+
+        Save($"Old Workshop Folder,True,{itemId}", $"{name},False,{itemId}", $"{name},True,0");
+        Select(new RuntimeStartup(), both);
+        Require(started.Count == 2, "An earlier Workshop ID match failed to consume that folder before the next row's name fallback.");
+
+        Require(RuntimeStartup.IsWorkshopReady(ready)
+            && !RuntimeStartup.IsWorkshopReady(EItemState.k_EItemStateInstalled)
+            && !RuntimeStartup.IsWorkshopReady(EItemState.k_EItemStateSubscribed)
+            && !RuntimeStartup.IsWorkshopReady(ready | EItemState.k_EItemStateDownloadPending)
+            && !RuntimeStartup.IsWorkshopReady(ready | EItemState.k_EItemStateDisabledLocally),
+            "The Workshop installation eligibility check changed.");
+        var entry = RuntimeStartup.GetEntryPoint(typeof(RuntimeEntryPoint).Assembly.Location);
+        Require(entry.DeclaringType == typeof(RuntimeEntryPoint), "The Preloader could not resolve the runtime entry point.");
+        Console.WriteLine("PASS Preloader follows saved row order when same-named local and Workshop copies are installed or removed.");
+    }
+
     private static void VerifyCoroutine()
     {
         bool done = false;
@@ -39,14 +106,14 @@ internal static class Program
         }
 
         int calls = 0;
-        var wrapped = Plugin.RunAfter(Check(), () =>
+        var wrapped = RuntimeEntryPoint.RunAfter(Check(), () =>
         {
             Require(done, "Initialization ran before the game check finished.");
             calls++;
         });
         Require(wrapped.MoveNext() && Equals(wrapped.Current, "waiting") && calls == 0, "Game yield was lost.");
         Require(!wrapped.MoveNext() && calls == 1, "Initialization did not run after the game check.");
-        var canceled = Plugin.RunAfter(Check(), () => calls++);
+        var canceled = RuntimeEntryPoint.RunAfter(Check(), () => calls++);
         Require(canceled.MoveNext(), "The game check did not start.");
         (canceled as IDisposable)?.Dispose();
         Require(calls == 1, "Initialization ran after the game check was canceled.");

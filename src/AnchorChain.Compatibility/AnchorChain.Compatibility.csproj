@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>AnchorChain</AssemblyName>
     <AssemblyVersion>1.2.0.0</AssemblyVersion>
-    <Version>0.1.0</Version>
+    <Version>$(BlueChainVersion)</Version>
     <Description>Anchor Chain plug-in compatibility for Blue Chain</Description>
   </PropertyGroup>
   <ItemGroup>
