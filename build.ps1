@@ -59,9 +59,6 @@ $workshopFiles = [ordered]@{
     'LICENSE' = $license
     'ThirdPartyNotices/AnchorChain.txt' = Join-Path $PSScriptRoot 'ThirdPartyNotices/AnchorChain.txt'
 }
-Write-Package "BlueChain-$version-Preloader.zip" $preloaderFiles
-Write-Package "BlueChain-$version-Workshop.zip" $workshopFiles
-
 $localFiles = [ordered]@{}
 foreach ($entry in $preloaderFiles.GetEnumerator()) {
     $localFiles.Add($entry.Key, $entry.Value)
@@ -70,4 +67,9 @@ foreach ($entry in $workshopFiles.GetEnumerator()) {
     if ($entry.Key -eq 'LICENSE') { continue }
     $localFiles.Add("Sea Power_Data/StreamingAssets/BlueChain/$($entry.Key)", $entry.Value)
 }
+
+$preloaderFiles.Add('BepInEx/config/bluechain.preloader.cfg',
+    (Join-Path $PSScriptRoot 'package/Preloader/bluechain.preloader.cfg'))
+Write-Package "BlueChain-$version-Preloader.zip" $preloaderFiles
+Write-Package "BlueChain-$version-Workshop.zip" $workshopFiles
 Write-Package "BlueChain-$version.zip" $localFiles

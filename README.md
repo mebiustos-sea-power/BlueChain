@@ -1,16 +1,33 @@
 # Blue Chain — DLL Mod Loader
 
-Blue Chain is an independent code mod loader for Sea Power. A small BepInEx Preloader starts the runtime from a local mod folder or an installed Workshop item. The runtime package includes Blue Chain's compatibility assembly for existing Anchor Chain plug-ins.
+Blue Chain is an independent DLL mod loader for Sea Power with Anchor Chain (AC) compatibility. It is designed to let you use existing AC-compatible mods without modifying or recompiling them.
+
+## Features
+
+- **Minimal reliance on game internals.** Blue Chain limits its reliance on Sea Power's internal mod management and initialization order. Future game updates may still affect compatibility.
+- **Open source.** Blue Chain is released under the [MIT License](LICENSE).
 
 ## Installation
 
-1. Install BepInEx 5 for a Windows Unity Mono game. On Proton, follow the [BepInEx Proton setup](https://docs.bepinex.dev/master/articles/advanced/steam_interop.html).
-2. Choose Blue Chain as the code mod loader. If upgrading from Blue Chain 0.1.0, remove the previous `BepInEx/plugins/BlueChain/BlueChain.dll` and `BepInEx/plugins/BlueChain/AnchorChain.dll`. If switching from Anchor Chain, remove `AnchorChain.Preloader.dll` from the BepInEx plug-ins directory.
-3. For local installation, extract `BlueChain-<version>.zip` into your Sea Power installation. This places the Preloader under `BepInEx/plugins` and the runtime under `Sea Power_Data/StreamingAssets/BlueChain`.
-4. Enable Blue Chain in the Mod Manager, confirm the changes, and restart Sea Power.
-5. Read `BepInEx/LogOutput.log` for initialization results, skipped plug-ins and errors.
+Close Sea Power. Install BepInEx 5 for Unity Mono if it is not already installed. On Proton, follow the [BepInEx Proton setup](https://docs.bepinex.dev/master/articles/advanced/steam_interop.html).
 
-For Workshop installation, install the Preloader ZIP, subscribe to the Blue Chain Workshop item, and let Steam finish downloading it. Set `ModFolder` in `BepInEx/config/bluechain.preloader.cfg` to the item's actual folder name. Steam normally names that folder with the item ID. BepInEx creates the configuration when the Preloader first starts.
+- If switching from Anchor Chain, remove `BepInEx/plugins/AnchorChain.Preloader.dll` and unsubscribe from Anchor Chain on the Workshop.
+- If upgrading from Blue Chain 0.1.0, remove the old `BepInEx/plugins/BlueChain/BlueChain.dll` and `BepInEx/plugins/BlueChain/AnchorChain.dll`.
+
+### Local installation from GitHub
+
+1. Extract `BlueChain-<version>.zip` into the folder containing `Sea Power.exe`. This places the Preloader under `BepInEx/plugins` and the runtime under `Sea Power_Data/StreamingAssets/BlueChain`.
+2. Launch Sea Power, enable Blue Chain in the Mod Manager, and restart the game.
+
+### Workshop installation
+
+1. Extract `BlueChain-<version>-Preloader.zip` into the folder containing `Sea Power.exe`. The ZIP includes the Workshop configuration.
+2. Subscribe to [Blue Chain on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842265825).
+3. Launch Sea Power, enable Blue Chain in the Mod Manager, and restart the game.
+
+### Runtime configuration
+
+The BepInEx Preloader starts the runtime from the selected mod folder. The runtime package includes Blue Chain's compatibility assembly for existing Anchor Chain plug-ins. By default, the Preloader looks for a folder named `BlueChain`.
 
 ```ini
 [Runtime]
@@ -19,6 +36,9 @@ ModFolder = BlueChain
 
 The Preloader looks for that folder name under `StreamingAssets` first, then among subscribed and installed Workshop folders. An existing local folder takes precedence, and its own checkbox determines whether Blue Chain starts.
 
+### Troubleshooting
+
+Read `BepInEx/LogOutput.log` for initialization results, skipped plug-ins, and errors.
 
 Steam Workshop requirements are configured by each mod author. A Workshop page or the game may still display a dependency on Anchor Chain.
 
@@ -40,7 +60,7 @@ Run these in Windows PowerShell. Use a Sea Power installation with BepInEx 5 for
 .\tools\test-mono.ps1 -GameDirectory $gameDirectory
 ```
 
-The build writes ZIPs for local installation, the standalone Preloader, and Workshop content to `dist`, each with a SHA-256 file. Extract the Workshop content ZIP as the upload directory. Pass `-SourceRevision` with the source commit ID for a release from a committed tree.
+The build writes ZIPs for local installation, the Preloader with its Workshop ID configured, and Workshop content to `dist`, each with a SHA-256 file. Extract the Workshop content ZIP as the upload directory. Pass `-SourceRevision` with the source commit ID for a release from a committed tree.
 
 The tests run under Sea Power's bundled Mono without launching the game. Steam startup and INI changes made through Unity need in-game verification.
 
