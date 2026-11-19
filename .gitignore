@@ -1,0 +1,4 @@
+**/bin/
+**/obj/
+/dist/
+/docs/agent-memory.md

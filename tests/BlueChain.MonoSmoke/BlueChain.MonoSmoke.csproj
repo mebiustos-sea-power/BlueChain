@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <FindDependenciesOfExternallyResolvedReferences>false</FindDependenciesOfExternallyResolvedReferences>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/BlueChain/BlueChain.csproj" />
+    <Reference Include="BepInEx" HintPath="$(SeaPowerDir)/BepInEx/core/BepInEx.dll" Private="false" ExternallyResolved="true" />
+    <Reference Include="Mono.Cecil" HintPath="$(SeaPowerDir)/BepInEx/core/Mono.Cecil.dll" Private="false" ExternallyResolved="true" />
+    <Reference Include="UnityEngine" HintPath="$(SeaPowerDir)/Sea Power_Data/Managed/UnityEngine.dll" Private="false" ExternallyResolved="true" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(SeaPowerDir)/Sea Power_Data/Managed/UnityEngine.CoreModule.dll" Private="false" ExternallyResolved="true" />
+  </ItemGroup>
+</Project>
