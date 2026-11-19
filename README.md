@@ -12,7 +12,6 @@ Blue Chain is an independent DLL mod loader for Sea Power with Anchor Chain (AC)
 Close Sea Power. Install BepInEx 5 for Unity Mono if it is not already installed. On Proton, follow the [BepInEx Proton setup](https://docs.bepinex.dev/master/articles/advanced/steam_interop.html).
 
 - If switching from Anchor Chain, remove `BepInEx/plugins/AnchorChain.Preloader.dll` and unsubscribe from Anchor Chain on the Workshop.
-- If upgrading from Blue Chain 0.1.0, remove the old `BepInEx/plugins/BlueChain/BlueChain.dll` and `BepInEx/plugins/BlueChain/AnchorChain.dll`.
 
 ### Local installation from GitHub
 
